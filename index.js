@@ -1,4 +1,5 @@
-import fs from 'fs'
+import fs from 'fs';
+import crypto from 'crypto';
 
 const main = () => {
     let username = process.argv.find(str => str.split('=')[0] === '--username').split('=')[1];
@@ -22,7 +23,6 @@ const main = () => {
         } else
         if(chunk.trim().split(' ')[0] === 'cd') {
           const pathToDirectory = chunk.trim().split(' ').slice(1).join(' ');
-          console.log(pathToDirectory);
           process.chdir(pathToDirectory);
         } else
         if(chunk.trim().split(' ')[0] === 'ls') {
@@ -62,20 +62,32 @@ const main = () => {
         if(chunk.trim().split(' ')[0] === 'cp') {
           const pathToFile = chunk.trim().split(' ')[1];
           const pathToNewDirectory = chunk.trim().split(' ')[2];
-          fs.readFile(pathToFile, (err, data) => {
-            fs.writeFile(pathToNewDirectory, data, () => {});
+          const fileName = pathToFile.split(' ')[pathToFile.split(' ').length - 1];
+          let stream = fs.createReadStream(pathToFile, 'utf-8');
+          stream.on('data', (chunk) => {
+            fs.createWriteStream(pathToNewDirectory + '/' + fileName).write(chunk).on('error', (err) => {
+              console.log(err)
+            });
+          }).on('error', (err) => {
+            console.log(err)
           })
         } else
         if(chunk.trim().split(' ')[0] === 'mv') {
           const pathToFile = chunk.trim().split(' ')[1];
           const pathToNewDirectory = chunk.trim().split(' ')[2];
-          fs.readFile(pathToFile, (err, data) => {
-            fs.writeFile(pathToNewDirectory, data, () => {
-              fs.unlink(pathToFile, (err) => {
-                if(err)
-                    throw Error('FS operation failed');
-              })
-            });
+          const fileName = pathToFile.split(' ')[pathToFile.split(' ').length - 1];
+          fs.createReadStream(pathToFile, 'utf-8').on('data', (chunk) => {
+            let stream = fs.createWriteStream(pathToNewDirectory+ '/' + fileName)
+            stream.write(chunk)
+            stream.on('error', (err) => {
+              console.log(err)
+            })
+            fs.unlink(pathToFile, (err) => {
+              if(err)
+                  throw Error('FS operation failed');
+            })
+          }).on('error', (err) => {
+            console.log(err)
           })
         } else
         if(chunk.trim().split(' ')[0] === 'rm') {
@@ -84,8 +96,30 @@ const main = () => {
             if(err)
                 throw Error('FS operation failed');
           })
+        } else
+        if(chunk.trim().split(' ')[0] === 'os' && chunk.trim().split(' ')[1] === '--EOL') {
+          console.log(os.EOL)
+        } else
+        if(chunk.trim().split(' ')[0] === 'os' && chunk.trim().split(' ')[1] === '--cpus') {
+          console.log(os.cpus())
+        } else
+        if(chunk.trim().split(' ')[0] === 'os' && chunk.trim().split(' ')[1] === '--homedir') {
+          console.log(os.homedir())
+        } else
+        if(chunk.trim().split(' ')[0] === 'os' && chunk.trim().split(' ')[1] === '--username') {
+          console.log(os.userInfo().username)
+        } else
+        if(chunk.trim().split(' ')[0] === 'os' && chunk.trim().split(' ')[1] === '--architecture') {
+          console.log(os.arch())
+        } else
+        if(chunk.trim().split(' ')[0] === 'hash') {
+          const pathToFile = chunk.trim().split(' ')[1];
+          fs.readFile(pathToFile, 'utf-8', (err, data) => {
+            if(err)
+              console.log(err);
+            console.log(crypto.createHash('sha256').update(data).digest('hex'));
+          })
         }
-
         console.log('You are currently in ' + process.cwd());
     })
 
