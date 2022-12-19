@@ -1,5 +1,6 @@
 import fs from 'fs';
 import crypto from 'crypto';
+import zlib from 'zlib';
 
 const main = () => {
     let username = process.argv.find(str => str.split('=')[0] === '--username').split('=')[1];
@@ -119,6 +120,36 @@ const main = () => {
               console.log(err);
             console.log(crypto.createHash('sha256').update(data).digest('hex'));
           })
+        } else
+        if(chunk.trim().split(' ')[0] === 'compress') {
+          const pathToFile = chunk.trim().split(' ')[1];
+          const pathToNewDirectory = chunk.trim().split(' ')[2] || './';
+          const fileName = pathToFile.split('/')[pathToFile.split('/').length - 1];
+
+          fs.createReadStream(pathToFile, 'utf-8').on('data', (chunk) => {
+            zlib.brotliCompress(chunk,{params: {
+              [zlib.constants.BROTLI_PARAM_MODE]: zlib.constants.BROTLI_MODE_TEXT
+              }}, (err, res) => {
+                if(err) console.log(err)
+                fs.createWriteStream(pathToNewDirectory + '/' + fileName + '.gz').on('error', (err) => console.log(err)).write(res.toString('base64'));
+            })
+          })
+          .on('finish', () => {}).on('error', () => {})
+        } else
+        if(chunk.trim().split(' ')[0] === 'decompress') {
+          const pathToFile = chunk.trim().split(' ')[1];
+          const pathToNewDirectory = chunk.trim().split(' ')[2] || './';
+          const fileName = pathToFile.split('/')[pathToFile.split('/').length - 1];
+
+          fs.createReadStream(pathToFile, 'utf-8').on('data', (chunk) => {
+            const compressedData = Buffer.from(chunk, 'base64');
+            zlib.brotliDecompress(compressedData, (err, buffer) => {
+              if(err) console.log(err) 
+              else {
+                fs.createWriteStream(pathToNewDirectory + '/' + (fileName.split('.').slice(0, -1)).join('.')).on('error', (err) => console.log(err)).write(buffer);
+              }
+            })
+          }).on('finish', () => {}).on('error', () => {})
         }
         console.log('You are currently in ' + process.cwd());
     })
